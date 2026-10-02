@@ -1,0 +1,12 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+data/
+snapshots_multiclass/
+
+runs/
+multiclass_new_run/
+multiclass_final_v3/
