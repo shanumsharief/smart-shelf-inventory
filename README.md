@@ -1,181 +1,132 @@
-Smart Shelf Inventory
+# Smart Shelf Inventory
 
-A YOLOv8-based computer vision project for detecting and counting selected retail products from shelf images/video and generating low-stock alerts.
+Detect and count retail products on a shelf with YOLOv8 and raise low-stock alerts in real time, through a Gradio dashboard.
 
-The system was developed and evaluated using a custom-labelled dataset collected from a single retail store.
+![Smart Shelf demo](demo/demo.jpeg)
 
-Demo
+A proof-of-concept computer vision system trained on a custom-labelled dataset from a single retail store.
 
-Suggested file:
+## Features
 
-demo/demo.jpeg
+- Multi-class product detection (12 classes) with YOLOv8n
+- Product counting from live camera input or images
+- Per-class stock thresholds with low-stock alerts
+- Snapshot saving for alert events
+- Adjustable confidence threshold in the Gradio interface
 
-The demo shows live shelf detection, product counting, inventory status, and low-stock alerts through a Gradio interface.
+## How it works
 
-What It Does
-
-Multi-class product detection using YOLOv8
-
-Product counting from live camera input
-
-Per-class inventory threshold checking
-
-Low-stock alerts
-
-Snapshot saving for alert events
-
-Gradio-based monitoring interface
-
-Project Structure
-
-smart_shelf_inventory/
-│
-├── app.py                         # Gradio UI + inference loop
-├── train.py                       # YOLOv8 training script
-├── data.yaml                      # Dataset configuration
-├── requirements.txt               # Python dependencies
-├── yolov8n.pt                     # Base YOLOv8 model
-├── alert.mp3                      # Alert sound
-│
-├── data/                          # Dataset (not included in the public repo)
-│
-├── multiclass_final_v3/           # Training output / trained model
-├── multiclass_new_run/            # Additional training run
-├── snapshots_multiclass/          # Generated alert snapshots
-│
-└── README.md
-
-Dataset
-
-The dataset was collected and labelled manually from a single retail store.
-
-It contains a limited set of product classes and shelf conditions. Because the images were collected from one store and the product/background diversity is limited, the trained model is primarily suited to products and visual conditions represented in this dataset.
-
-The raw dataset is not included in this repository.
-
-Results
-
-On the validation set from this training run:
-
-mAP@50: 26.15%
-
-mAP@50–95: 14.27%
-
-Precision: 53.50%
-
-Recall: 24.03%
-
-The highest recorded validation mAP values occurred around epochs 185–187.
-
-These metrics reflect performance on the project's validation set and should not be interpreted as general performance across unseen stores or products.
-
-How It Works
-
+```
 Camera / Image
       ↓
-YOLOv8 Detection
+YOLOv8 detection
       ↓
-Product Classification + Counting
+Product classification + counting
       ↓
-Per-class Threshold Check
+Per-class threshold check
       ↓
-Inventory Status
+Inventory status
       ↓
-Low-stock Alert + Snapshot
+Low-stock alert + snapshot
+```
 
-Setup
+## Dataset
 
-1. Create a virtual environment
+| | |
+|---|---|
+| Source | Shelf images I collected from one retail store |
+| Images | 20 |
+| Classes | 12  |
+| Labelled boxes | 1,058 |
+| Split | 17 / 2|
+| Labelling | Manual, YOLO format (Roboflow) |
 
+The raw dataset is not included because it was collected personally in a specific retail environment. To train on your own data, prepare images in YOLO format and point `data.yaml` at them.
+
+## Results
+
+Evaluated on the validation split:
+
+| Precision | Recall | mAP@50 | mAP@50–95 |
+|---|---|---|---|
+| 53.50% | 24.03% | 26.15% | 14.27% |
+
+The best checkpoint came from around epochs 185–187. There is no separate test set, so the checkpoint was selected on the same validation split these metrics come from, which makes them optimistic. With 20 images in total, they are also noisy. Treat them as indicative only, not as performance on unseen stores or products.
+
+### Confusion matrix
+
+![Confusion matrix](assets/confusion_matrix_normalized.png)
+
+### Sample validation predictions
+
+![Validation predictions](assets/val_batch0_pred.jpg)
+
+## Limitations
+
+- **Closed-set detector.** The model only recognises the 12 product classes it was trained on. Products outside that catalog are not detected.
+- **Single-store data.** The training images come from one store, so shelf layout, lighting, and camera variation are limited. The model does not transfer to other stores.
+- **Small dataset.** Recall is low (24%), and some classes have few examples. 
+
+Improving this would need a larger, more varied dataset across stores, lighting, and camera angles.
+
+## Setup
+
+```bash
+git clone https://github.com/shanumsharief/smart-shelf-inventory.git
+cd smart-shelf-inventory
 python3 -m venv .venv
 source .venv/bin/activate
-
-2. Install dependencies
-
 pip install -r requirements.txt
+```
 
-Run the Application
+Trained weights: [`weights/best.pt`](weights/best.pt) (YOLOv8n, trained on the 12 classes).
 
-Start the Gradio dashboard with:
+## Usage
 
+**Run the dashboard**
+
+```bash
 python app.py
+```
 
-The application accepts live camera input and displays detected products, counts, inventory status, and low-stock alerts.
+**Train a model**
 
-Training
-
-To train a new YOLOv8 model:
-
+```bash
 python train.py
+```
 
-The training configuration used for the reported run was:
+Reported run: `yolov8n.pt`, 1024 × 1024 images, 200 epochs, batch size 8.
 
-Base model: yolov8n.pt
+**Configuration**
 
-Image size: 1024 × 1024
+- Low-stock thresholds: set in `app.py`
+- Confidence threshold: adjustable in the Gradio interface
+- Image size, epochs, batch size: set in `train.py`
 
-Epochs: 200
+## Project structure
 
-Batch size: 8
+```
+├── app.py            # Gradio UI + inference loop
+├── train.py          # YOLOv8 training script
+├── data.yaml         # Dataset configuration
+├── requirements.txt  # Dependencies
+├── alert.mp3         # Alert sound
+├── weights/          # Trained YOLOv8n checkpoint (best.pt)
+├── assets/           # Result images used in this README
+└── demo/             # Demo screenshot
+```
 
-Training outputs are saved to the configured project/run directory.
+## What I learned
 
-Configuration
+I built the full pipeline, from collecting and labelling data to training, evaluation, real-time inference, and counting logic. The key lesson was how much dataset diversity limits real-world generalisation. The model detected products from its training store but could not recognise unseen ones, which is what a closed-set detector trained on one catalog should do.
 
-Low-stock thresholds are configured in app.py.
+## Future work
 
-The confidence threshold can be adjusted through the Gradio interface during inference.
+- Collect images across multiple stores, lighting conditions, and angles
+- Evaluate on a split held out by shelf or session
+- Add new products through fine-tuning on small labelled sets
+- Explore open-vocabulary detection for unseen products
 
-Training parameters such as image size, epochs, and batch size can be changed in train.py.
+## Tech stack
 
-Limitations
-
-This project has an intentionally narrow evaluation scope.
-
-The training images were collected and labelled by me from one retail store, so the dataset does not capture enough variation across stores, products, shelf layouts, lighting, or camera conditions.
-
-As a result:
-
-The model works best on product classes represented in the training data.
-
-It is not reliable for arbitrary products from unseen stores.
-
-Performance can change with different shelf layouts or visual conditions.
-
-Improving generalization would require a larger and more diverse dataset.
-
-What I Learned
-
-This project helped me work through the full computer-vision pipeline:
-
-Data Collection
-      ↓
-Manual Labelling
-      ↓
-Dataset Preparation
-      ↓
-YOLOv8 Training
-      ↓
-Model Evaluation
-      ↓
-Real-time Inference
-      ↓
-Counting + Application Logic
-
-A key limitation I identified during testing was the relationship between dataset diversity and real-world generalization. Testing on the same store showed good detection performance, while changing the environment exposed the limits of the training data.
-
-Tech Stack
-
-Python
-
-YOLOv8 / Ultralytics
-
-OpenCV
-
-Gradio
-
-Repository Notes
-
-The public repository contains the application and training code needed to understand and reproduce the project workflow.
-
-The original image dataset is not included because it was collected personally and is tied to a specific retail environment.
+Python · YOLOv8 (Ultralytics) · OpenCV · Gradio
